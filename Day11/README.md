@@ -46,58 +46,66 @@ The following resources will be provisioned:
 
 #!/bin/bash
 
-# Set variables
-REGION="canadacentral"
-RGP="day11-demo-rg"
-CLUSTER_NAME="day11-demo-cluster"
-ACR_NAME="day11demoacr"
-SQLSERVER="day11-demo-sqlserver"
-DB="mhcdb"
+# Variables
+LOCATION="canadacentral"
+RG_NAME="day11-demo-rg"
+AKS_NAME="day11-demo-cluster"
+ACR_NAME="day11demoacrll$RANDOM"  # Ensure unique ACR name (e.g., using random suffix)
+SQLSERVER_NAME="day11-demo-sqlserver"
+DB_NAME="mhcdb"
+SQL_ADMIN_USER="sqladmin"
+SQL_ADMIN_PASSWORD="P2ssw0rd1234"  # Change this password to something secure
+NODE_SIZE="Standard_B2s"            # Use a VM size allowed in Canadacentral region
+NODE_COUNT=1                        # Avoid vCPU quota breach (use smaller node count)
 
-# Create Resource Group
-az group create --name $RGP --location $REGION
+# Select subscription (if necessary)
+# az account set --subscription "<your-subscription-id>"
 
-# Register required resource providers
+# Step 1: Register required resource providers
+echo "Registering required resource providers..."
 az provider register --namespace Microsoft.ContainerService
 az provider register --namespace Microsoft.Insights
 az provider register --namespace Microsoft.Sql
 
-# Deploy AKS with valid VM size for Canada Central
+# Step 2: Create resource group
+echo "Creating resource group $RG_NAME in $LOCATION..."
+az group create --name $RG_NAME --location $LOCATION
+
+# Step 3: Create ACR (Azure Container Registry) with a unique name
+echo "Creating ACR $ACR_NAME..."
+az acr create --resource-group $RG_NAME --name $ACR_NAME --sku Basic --location $LOCATION
+
+# Step 4: Create AKS (Azure Kubernetes Service) cluster
+echo "Creating AKS cluster $AKS_NAME..."
 az aks create \
-  --resource-group $RGP \
-  --name $CLUSTER_NAME \
+  --resource-group $RG_NAME \
+  --name $AKS_NAME \
+  --node-count $NODE_COUNT \
+  --node-vm-size $NODE_SIZE \
+  --enable-managed-identity \
   --enable-addons monitoring \
   --generate-ssh-keys \
-  --location $REGION \
-  --node-vm-size Standard_D2s_v3
-
-# Deploy ACR
-az acr create \
-  --resource-group $RGP \
-  --name $ACR_NAME \
-  --sku Standard \
-  --location $REGION
-
-# Authenticate ACR with AKS
-az aks update \
-  --name $CLUSTER_NAME \
-  --resource-group $RGP \
+  --location $LOCATION \
   --attach-acr $ACR_NAME
 
-# Create SQL Server
-az sql server create \
-  --location $REGION \
-  --resource-group $RGP \
-  --name $SQLSERVER \
-  --admin-user sqladmin \
-  --admin-password P2ssw0rd1234
+# Step 5: Get AKS credentials for kubectl access
+echo "Getting AKS credentials..."
+az aks get-credentials --resource-group $RG_NAME --name $AKS_NAME
 
-# Create SQL Database
-az sql db create \
-  --resource-group $RGP \
-  --server $SQLSERVER \
-  --name $DB \
-  --service-objective S0
+# Step 6: Create SQL Server and Database
+echo "Creating SQL Server $SQLSERVER_NAME..."
+az sql server create -l $LOCATION -g $RG_NAME -n $SQLSERVER_NAME -u $SQL_ADMIN_USER -p $SQL_ADMIN_PASSWORD
+
+echo "Creating SQL Database $DB_NAME..."
+az sql db create -g $RG_NAME -s $SQLSERVER_NAME -n $DB_NAME --service-objective S0
+
+# Confirmation
+echo "✅ Resources created successfully:
+  - Resource Group: $RG_NAME
+  - AKS Cluster: $AKS_NAME
+  - ACR: $ACR_NAME
+  - SQL Server: $SQLSERVER_NAME
+  - SQL Database: $DB_NAME"
 
 
 
