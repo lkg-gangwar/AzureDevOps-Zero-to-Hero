@@ -45,34 +45,60 @@ The following resources will be provisioned:
 ``` bash
 
 #!/bin/bash
+
+# Set variables
 REGION="canadacentral"
 RGP="day11-demo-rg"
 CLUSTER_NAME="day11-demo-cluster"
-ACR_NAME="day11demoacr$RANDOM"
-SQLSERVER="day11-demo-sqlserver$RANDOM"
+ACR_NAME="day11demoacr"
+SQLSERVER="day11-demo-sqlserver"
 DB="mhcdb"
 
-# Register required providers
-az provider register --namespace Microsoft.ContainerService
-az provider register --namespace Microsoft.Insights
-az provider register --namespace Microsoft.ContainerRegistry
-az provider register --namespace Microsoft.Sql
-
-# Create Resource group
+# Create Resource Group
 az group create --name $RGP --location $REGION
 
-# Deploy AKS
-az aks create --resource-group $RGP --name $CLUSTER_NAME --enable-addons monitoring --generate-ssh-keys --location $REGION
+# Register required resource providers
+az provider register --namespace Microsoft.ContainerService
+az provider register --namespace Microsoft.Insights
+az provider register --namespace Microsoft.Sql
+
+# Deploy AKS with valid VM size for Canada Central
+az aks create \
+  --resource-group $RGP \
+  --name $CLUSTER_NAME \
+  --enable-addons monitoring \
+  --generate-ssh-keys \
+  --location $REGION \
+  --node-vm-size Standard_D2s_v3
 
 # Deploy ACR
-az acr create --resource-group $RGP --name $ACR_NAME --sku Standard --location $REGION
+az acr create \
+  --resource-group $RGP \
+  --name $ACR_NAME \
+  --sku Standard \
+  --location $REGION
 
 # Authenticate ACR with AKS
-az aks update -n $CLUSTER_NAME -g $RGP --attach-acr $ACR_NAME
+az aks update \
+  --name $CLUSTER_NAME \
+  --resource-group $RGP \
+  --attach-acr $ACR_NAME
 
-# Create SQL Server and DB
-az sql server create -l $REGION -g $RGP -n $SQLSERVER -u sqladmin -p P2ssw0rd1234
-az sql db create -g $RGP -s $SQLSERVER -n $DB --service-objective S0
+# Create SQL Server
+az sql server create \
+  --location $REGION \
+  --resource-group $RGP \
+  --name $SQLSERVER \
+  --admin-user sqladmin \
+  --admin-password P2ssw0rd1234
+
+# Create SQL Database
+az sql db create \
+  --resource-group $RGP \
+  --server $SQLSERVER \
+  --name $DB \
+  --service-objective S0
+
 
 
 ```
