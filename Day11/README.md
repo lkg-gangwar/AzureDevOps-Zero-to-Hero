@@ -45,7 +45,7 @@ The following resources will be provisioned:
 ``` bash
 
 #!/bin/bash
-REGION="westus"
+REGION="canadacentral"
 RGP="day11-demo-rg"
 CLUSTER_NAME="day11-demo-cluster"
 ACR_NAME="day11demoacr$RANDOM"
