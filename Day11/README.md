@@ -42,6 +42,8 @@ The following resources will be provisioned:
 * A SQL Server
 * A SQL Database
 
+before running this script do dos2unix <scriptname> if edited the script in windows.
+
 ``` bash
 
 #!/bin/bash
