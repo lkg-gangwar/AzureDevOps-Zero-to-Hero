@@ -175,62 +175,35 @@ https://github.com/piyushsachdeva/MyHealthClinic-AKS
 ```
 #!/bin/bash
 
+# Variables (must match the deployment script values)
+LOCATION="canadacentral"
+RG_NAME="akslkgrg"
+AKS_NAME="akslkgcluster"
+ACR_NAME=$(az acr list --resource-group $RG_NAME --query "[0].name" -o tsv)
+SQLSERVER_NAME=$(az sql server list --resource-group $RG_NAME --query "[0].name" -o tsv)
 
-# Set environment variables
-REGION="westus"
-RGP="day11-demo-rg"
-CLUSTER_NAME="day11-demo-cluster"
-ACR_NAME="day11demoacr"
-SQLSERVER="day11-demo-sqlserver"
-DB="mhcdb"
+# Select your subscription (optional)
+#az account set --subscription <id>
 
-# Function to handle errors
-handle_error() {
-    echo "Error: $1"
-    exit 1
-}
+# Delete SQL Database Server (deletes all DBs too)
+echo "Deleting SQL Server: $SQLSERVER_NAME..."
+az sql server delete --name $SQLSERVER_NAME --resource-group $RG_NAME --yes
 
-# Function to check if the resource exists
-resource_exists() {
-    az resource show --ids $1 &> /dev/null
-}
+# Delete AKS Cluster
+echo "Deleting AKS Cluster: $AKS_NAME..."
+az aks delete --name $AKS_NAME --resource-group $RG_NAME --yes
 
-# Delete Azure Kubernetes Service (AKS)
-if resource_exists $(az aks show --resource-group $RGP --name $CLUSTER_NAME --query id --output tsv); then
-    az aks delete --resource-group $RGP --name $CLUSTER_NAME || handle_error "Failed to delete AKS."
-else
-    echo "AKS not found. Skipping deletion."
-fi
+# Delete ACR
+echo "Deleting ACR: $ACR_NAME..."
+az acr delete --name $ACR_NAME --resource-group $RG_NAME --yes
 
-# Delete Azure Container Registry (ACR)
-if resource_exists $(az acr show --name $ACR_NAME --resource-group $RGP --query id --output tsv); then
-    az acr delete --name $ACR_NAME --resource-group $RGP || handle_error "Failed to delete ACR."
-else
-    echo "ACR not found. Skipping deletion."
-fi
+# Delete Resource Group (deletes all resources inside)
+echo "Deleting Resource Group: $RG_NAME..."
+az group delete --name $RG_NAME --yes --no-wait
 
-# Delete SQL Database
-if resource_exists $(az sql db show --resource-group $RGP --server $SQLSERVER --name $DB --query id --output tsv); then
-    az sql db delete --resource-group $RGP --server $SQLSERVER --name $DB || handle_error "Failed to delete SQL Database."
-else
-    echo "SQL Database not found. Skipping deletion."
-fi
+# Summary
+echo "🧹 Destroy process initiated. Resources will be deleted shortly."
 
-# Delete SQL Server
-if resource_exists $(az sql server show --resource-group $RGP --name $SQLSERVER --query id --output tsv); then
-    az sql server delete --resource-group $RGP --name $SQLSERVER || handle_error "Failed to delete SQL Server."
-else
-    echo "SQL Server not found. Skipping deletion."
-fi
-
-# Delete Resource Group
-if resource_exists $(az group show --name $RGP --query id --output tsv); then
-    az group delete --name $RGP || handle_error "Failed to delete Resource Group."
-else
-    echo "Resource Group not found. Skipping deletion."
-fi
-
-echo "Resources successfully deleted."
 
 ```
 
