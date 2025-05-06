@@ -50,33 +50,36 @@ The following resources will be provisioned:
 LOCATION="canadacentral"
 RG_NAME="day11-demo-rg"
 AKS_NAME="day11-demo-cluster"
-ACR_NAME="day11demoacrll$RANDOM"  # Ensure unique ACR name (e.g., using random suffix)
-SQLSERVER_NAME="day11-demo-sqlserver"
+ACR_NAME="day11demoacr$RANDOM"  # Unique name to avoid conflicts
+SQLSERVER_NAME="day11demosql$RANDOM"  # Unique name (SQL server names must be globally unique)
 DB_NAME="mhcdb"
 SQL_ADMIN_USER="sqladmin"
-SQL_ADMIN_PASSWORD="P2ssw0rd1234"  # Change this password to something secure
-NODE_SIZE="Standard_B2s"            # Use a VM size allowed in Canadacentral region
-NODE_COUNT=1                        # Avoid vCPU quota breach (use smaller node count)
+SQL_ADMIN_PASSWORD="P@ssw0rd1234!"  # Strong password
+NODE_SIZE="Standard_B2s"
+NODE_COUNT=1
 
-# Select subscription (if necessary)
+# Select your subscription (optional)
 # az account set --subscription "<your-subscription-id>"
 
-# Step 1: Register required resource providers
-echo "Registering required resource providers..."
+# Register required resource providers
 az provider register --namespace Microsoft.ContainerService
 az provider register --namespace Microsoft.Insights
 az provider register --namespace Microsoft.Sql
 
-# Step 2: Create resource group
-echo "Creating resource group $RG_NAME in $LOCATION..."
+# Create resource group
+echo "Creating Resource Group..."
 az group create --name $RG_NAME --location $LOCATION
 
-# Step 3: Create ACR (Azure Container Registry) with a unique name
-echo "Creating ACR $ACR_NAME..."
+# Create ACR
+echo "Creating Azure Container Registry..."
 az acr create --resource-group $RG_NAME --name $ACR_NAME --sku Basic --location $LOCATION
+if [ $? -ne 0 ]; then
+    echo "❌ Failed to create ACR. Exiting."
+    exit 1
+fi
 
-# Step 4: Create AKS (Azure Kubernetes Service) cluster
-echo "Creating AKS cluster $AKS_NAME..."
+# Create AKS cluster
+echo "Creating AKS Cluster..."
 az aks create \
   --resource-group $RG_NAME \
   --name $AKS_NAME \
@@ -87,25 +90,45 @@ az aks create \
   --generate-ssh-keys \
   --location $LOCATION \
   --attach-acr $ACR_NAME
+if [ $? -ne 0 ]; then
+    echo "❌ Failed to create AKS Cluster. Exiting."
+    exit 1
+fi
 
-# Step 5: Get AKS credentials for kubectl access
-echo "Getting AKS credentials..."
+# Get AKS credentials
 az aks get-credentials --resource-group $RG_NAME --name $AKS_NAME
 
-# Step 6: Create SQL Server and Database
-echo "Creating SQL Server $SQLSERVER_NAME..."
-az sql server create -l $LOCATION -g $RG_NAME -n $SQLSERVER_NAME -u $SQL_ADMIN_USER -p $SQL_ADMIN_PASSWORD
+# Create SQL Server
+echo "Creating SQL Server..."
+az sql server create \
+  --name $SQLSERVER_NAME \
+  --resource-group $RG_NAME \
+  --location $LOCATION \
+  --admin-user $SQL_ADMIN_USER \
+  --admin-password $SQL_ADMIN_PASSWORD
+if [ $? -ne 0 ]; then
+    echo "❌ Failed to create SQL Server. Exiting."
+    exit 1
+fi
 
-echo "Creating SQL Database $DB_NAME..."
-az sql db create -g $RG_NAME -s $SQLSERVER_NAME -n $DB_NAME --service-objective S0
+# Create SQL Database
+echo "Creating SQL Database..."
+az sql db create \
+  --resource-group $RG_NAME \
+  --server $SQLSERVER_NAME \
+  --name $DB_NAME \
+  --service-objective S0
+if [ $? -ne 0 ]; then
+    echo "❌ Failed to create SQL Database. Exiting."
+    exit 1
+fi
 
-# Confirmation
-echo "✅ Resources created successfully:
-  - Resource Group: $RG_NAME
-  - AKS Cluster: $AKS_NAME
-  - ACR: $ACR_NAME
-  - SQL Server: $SQLSERVER_NAME
-  - SQL Database: $DB_NAME"
+# Summary
+echo "✅ Deployment Successful!"
+echo "AKS: $AKS_NAME"
+echo "ACR: $ACR_NAME"
+echo "SQL Server: $SQLSERVER_NAME"
+echo "SQL DB: $DB_NAME"
 
 
 
